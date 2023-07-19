@@ -1,6 +1,6 @@
 {
   "name": "dependabot-jira-action",
-  "version": "1.5.1",
+  "version": "1.5.3",
   "private": true,
   "description": "Syncs dependabot PRs to JIRA",
   "main": "lib/main.js",

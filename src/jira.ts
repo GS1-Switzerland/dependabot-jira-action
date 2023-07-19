@@ -75,8 +75,8 @@ async function jiraApiPost(params: ApiPostParams): Promise<ApiRequestResponse> {
       console.log('Error:', message)
       throw Error(message)
     }
-  } catch (e:any) {
-    console.error(e.message);
+  } catch (e: any) {
+    console.error(e.message)
     throw new Error('Post error')
   }
 }
@@ -123,9 +123,7 @@ export async function createJiraIssue({
   lastUpdatedAt,
   pullNumber
 }: CreateIssue): Promise<ApiRequestResponse> {
-  let tempSummary = summary
-  tempSummary = tempSummary.replaceAll(' - ', ' \\"-\\" ')
-  const jql = `summary~'${tempSummary}' AND description~'${createIssueNumberString(
+  const jql = `description~"${createIssueNumberString(
     pullNumber
   )}' AND labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}'`
   const existingIssuesResponse = await jiraApiSearch({
