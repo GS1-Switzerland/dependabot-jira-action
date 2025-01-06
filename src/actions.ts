@@ -1,9 +1,5 @@
-import {
-  getDependabotOpenPullRequests,
-  getPullRequestByIssueId,
-  PullRequest
-} from './github'
-import {closeJiraIssue, createJiraIssue, jiraApiSearch} from './jira'
+import {getDependabotOpenPullRequests, PullRequest} from './github'
+import {createJiraIssue} from './jira'
 import * as core from '@actions/core'
 
 export interface SyncJiraOpen {
@@ -59,58 +55,6 @@ export async function syncJiraWithOpenDependabotPulls(
     )
     return 'success'
   } catch (e) {
-    throw e
-  }
-}
-
-export async function syncJiraWithClosedDependabotPulls(
-  params: SyncJiraOpen
-): Promise<string> {
-  try {
-    core.setOutput(
-      'Sync jira with closed dependabot pulls starting',
-      new Date().toTimeString()
-    )
-    const {repo, owner, label, projectKey, issueType, transitionDoneName} =
-      params
-
-    // First find all issues in jira that are not done
-    const jql = `labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}' AND status != 'Done'`
-    const existingIssuesResponse = await jiraApiSearch({
-      jql
-    })
-
-    if (
-      existingIssuesResponse &&
-      existingIssuesResponse.issues &&
-      existingIssuesResponse.issues.length > 0
-    ) {
-      // Loop through issue that are not done and check if they are done in github
-      for (const issue of existingIssuesResponse.issues) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        const issueNumber = extractIssueNumber(issue.fields.description)
-        const pullRequest = await getPullRequestByIssueId({
-          repo,
-          owner,
-          issueNumber
-        })
-        if (pullRequest.state === 'closed') {
-          // If the github issue is closed then close the jira issue
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore
-          await closeJiraIssue(issue.id, transitionDoneName)
-        }
-      }
-    }
-
-    core.setOutput(
-      'Sync jira with closed dependabot pulls success',
-      new Date().toTimeString()
-    )
-    return 'success'
-  } catch (e) {
-    core.debug(`ERROR ${JSON.stringify(e)}`)
     throw e
   }
 }

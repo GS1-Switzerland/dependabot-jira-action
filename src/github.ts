@@ -4,13 +4,6 @@ export interface GetPullRequestParams {
   owner: string
   repo: string
 }
-
-export interface GetPullRequestByIdParams {
-  owner: string
-  repo: string
-  issueNumber: string
-}
-
 export interface PullRequest {
   url: string
   summary: string
@@ -19,12 +12,6 @@ export interface PullRequest {
   repoUrl: string
   lastUpdatedAt: string
   pullNumber: string
-}
-
-interface GetPullRequestByIdResponse {
-  id: number
-  url: string
-  state: string
 }
 
 export async function getDependabotOpenPullRequests(
@@ -60,32 +47,4 @@ export async function getDependabotOpenPullRequests(
     }
   }
   return items
-}
-
-export async function getPullRequestByIssueId(
-  params: GetPullRequestByIdParams
-): Promise<GetPullRequestByIdResponse> {
-  const {owner, repo, issueNumber} = params
-  const githubApiKey = process.env.GITHUB_API_TOKEN || ''
-  const octokit = getOctokit(githubApiKey)
-  try {
-    const {data} = await octokit.request(
-      'GET /repos/{owner}/{repo}/pulls/{pull_number}',
-      {
-        owner,
-        repo,
-        pull_number: Number(issueNumber),
-        headers: {
-          'X-GitHub-Api-Version': '2022-11-28'
-        }
-      }
-    )
-    return data
-  } catch (e) {
-    return {
-      id: -1,
-      url: 'none',
-      state: 'none'
-    }
-  }
 }

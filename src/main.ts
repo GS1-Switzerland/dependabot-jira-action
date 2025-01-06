@@ -1,8 +1,5 @@
 import * as core from '@actions/core'
-import {
-  syncJiraWithClosedDependabotPulls,
-  syncJiraWithOpenDependabotPulls
-} from './actions'
+import {syncJiraWithOpenDependabotPulls} from './actions'
 
 async function run(): Promise<void> {
   try {
@@ -15,14 +12,7 @@ async function run(): Promise<void> {
     const issueType: string = core.getInput('jiraIssueType')
     const repo: string = core.getInput('githubRepo')
     const owner: string = core.getInput('githubOwner')
-    // First close jira issue that are closed in github
-    await syncJiraWithClosedDependabotPulls({
-      repo,
-      owner,
-      label,
-      projectKey,
-      issueType
-    })
+
     // Then open new issues in jira from open dependabot issues
     await syncJiraWithOpenDependabotPulls({
       repo,
