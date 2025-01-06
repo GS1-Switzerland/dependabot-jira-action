@@ -90,7 +90,7 @@ function syncJiraWithClosedDependabotPulls(params) {
             core.setOutput('Sync jira with closed dependabot pulls starting', new Date().toTimeString());
             const { repo, owner, label, projectKey, issueType, transitionDoneName } = params;
             // First find all issues in jira that are not done
-            const jql = `labels="${label}" AND project=${projectKey} AND issuetype=${issueType} AND status != Done`;
+            const jql = `labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}' AND status != 'Done'`;
             const existingIssuesResponse = yield (0, jira_1.jiraApiSearch)({
                 jql
             });
