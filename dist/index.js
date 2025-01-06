@@ -30,7 +30,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.syncJiraWithClosedDependabotPulls = exports.syncJiraWithOpenDependabotPulls = exports.createIssueNumberString = exports.extractIssueNumber = void 0;
+exports.syncJiraWithOpenDependabotPulls = exports.createIssueNumberString = exports.extractIssueNumber = void 0;
 const github_1 = __nccwpck_require__(5928);
 const jira_1 = __nccwpck_require__(4438);
 const core = __importStar(__nccwpck_require__(2186));
@@ -76,45 +76,6 @@ async function syncJiraWithOpenDependabotPulls(params) {
     }
 }
 exports.syncJiraWithOpenDependabotPulls = syncJiraWithOpenDependabotPulls;
-async function syncJiraWithClosedDependabotPulls(params) {
-    try {
-        core.setOutput('Sync jira with closed dependabot pulls starting', new Date().toTimeString());
-        const { repo, owner, label, projectKey, issueType, transitionDoneName } = params;
-        // First find all issues in jira that are not done
-        const jql = `labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}' AND status != 'Done'`;
-        const existingIssuesResponse = await (0, jira_1.jiraApiSearch)({
-            jql
-        });
-        if (existingIssuesResponse &&
-            existingIssuesResponse.issues &&
-            existingIssuesResponse.issues.length > 0) {
-            // Loop through issue that are not done and check if they are done in github
-            for (const issue of existingIssuesResponse.issues) {
-                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                // @ts-ignore
-                const issueNumber = extractIssueNumber(issue.fields.description);
-                const pullRequest = await (0, github_1.getPullRequestByIssueId)({
-                    repo,
-                    owner,
-                    issueNumber
-                });
-                if (pullRequest.state === 'closed') {
-                    // If the github issue is closed then close the jira issue
-                    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                    // @ts-ignore
-                    await (0, jira_1.closeJiraIssue)(issue.id, transitionDoneName);
-                }
-            }
-        }
-        core.setOutput('Sync jira with closed dependabot pulls success', new Date().toTimeString());
-        return 'success';
-    }
-    catch (e) {
-        core.debug(`ERROR ${JSON.stringify(e)}`);
-        throw e;
-    }
-}
-exports.syncJiraWithClosedDependabotPulls = syncJiraWithClosedDependabotPulls;
 
 
 /***/ }),
@@ -125,7 +86,7 @@ exports.syncJiraWithClosedDependabotPulls = syncJiraWithClosedDependabotPulls;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getPullRequestByIssueId = exports.getDependabotOpenPullRequests = void 0;
+exports.getDependabotOpenPullRequests = void 0;
 const github_1 = __nccwpck_require__(5438);
 async function getDependabotOpenPullRequests(params) {
     const { owner, repo } = params;
@@ -157,30 +118,6 @@ async function getDependabotOpenPullRequests(params) {
     return items;
 }
 exports.getDependabotOpenPullRequests = getDependabotOpenPullRequests;
-async function getPullRequestByIssueId(params) {
-    const { owner, repo, issueNumber } = params;
-    const githubApiKey = process.env.GITHUB_API_TOKEN || '';
-    const octokit = (0, github_1.getOctokit)(githubApiKey);
-    try {
-        const { data } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
-            owner,
-            repo,
-            pull_number: Number(issueNumber),
-            headers: {
-                'X-GitHub-Api-Version': '2022-11-28'
-            }
-        });
-        return data;
-    }
-    catch (e) {
-        return {
-            id: -1,
-            url: 'none',
-            state: 'none'
-        };
-    }
-}
-exports.getPullRequestByIssueId = getPullRequestByIssueId;
 
 
 /***/ }),
@@ -217,7 +154,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.closeJiraIssue = exports.createJiraIssue = exports.jiraApiSearch = exports.getJiraSearchApiUrl = exports.getJiraApiUrlV3 = void 0;
+exports.createJiraIssue = exports.jiraApiSearch = exports.getJiraSearchApiUrl = exports.getJiraApiUrlV3 = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const node_fetch_1 = __importDefault(__nccwpck_require__(467));
 const actions_1 = __nccwpck_require__(3623);
@@ -234,15 +171,12 @@ function getJiraAuthorizedHeader() {
 }
 function getJiraApiUrlV3(path = '/') {
     const subdomain = process.env.JIRA_SUBDOMAIN;
-    core.info(`subdomain ${subdomain}`);
-    const url = `https://${subdomain}.atlassian.net/rest/api/3${path}`;
-    return url;
+    return `https://${subdomain}.atlassian.net/rest/api/3${path}`;
 }
 exports.getJiraApiUrlV3 = getJiraApiUrlV3;
 function getJiraSearchApiUrl() {
     const subdomain = process.env.JIRA_SUBDOMAIN;
-    const url = `https://${subdomain}.atlassian.net/rest/api/3/search/jql`;
-    return url;
+    return `https://${subdomain}.atlassian.net/rest/api/3/search/jql`;
 }
 exports.getJiraSearchApiUrl = getJiraSearchApiUrl;
 async function jiraApiPost(params) {
@@ -386,83 +320,6 @@ async function createJiraIssue({ label, projectKey, summary, issueType = 'Bug', 
     return { data };
 }
 exports.createJiraIssue = createJiraIssue;
-async function closeJiraIssue(issueId, transitionName = 'done') {
-    core.debug(`Closing jira issue`);
-    const body = {
-        transition: {
-            id: -1
-        },
-        update: {
-            comment: [
-                {
-                    add: {
-                        body: {
-                            content: [
-                                {
-                                    content: [
-                                        {
-                                            text: 'Closed by dependabot',
-                                            type: 'text'
-                                        }
-                                    ],
-                                    type: 'paragraph'
-                                }
-                            ],
-                            type: 'doc',
-                            version: 1
-                        }
-                    }
-                }
-            ]
-        }
-    };
-    const transitionsResponse = await (0, node_fetch_1.default)(getJiraApiUrlV3(`/issue/${issueId}/transitions`), {
-        method: 'GET',
-        headers: getJiraAuthorizedHeader()
-    });
-    if (transitionsResponse.status === 200) {
-        const transitionsData = await transitionsResponse.json();
-        const transition = transitionsData.transitions.find((item) => {
-            if (item.name.toLowerCase() === transitionName.toLowerCase()) {
-                return item;
-            }
-        });
-        body.transition.id = transition.id;
-        const updateIssueResponse = await (0, node_fetch_1.default)(getJiraApiUrlV3(`/issue/${issueId}/transitions`), {
-            body: JSON.stringify(body),
-            headers: getJiraAuthorizedHeader(),
-            method: 'POST'
-        });
-        if (updateIssueResponse.status === 204) {
-            return {
-                data: {
-                    success: true
-                }
-            };
-        }
-        else {
-            try {
-                const error = await updateIssueResponse.json();
-                core.error(error);
-            }
-            catch (e) {
-                core.error('error in updateIssueResponse.json()');
-            }
-            throw new Error('Failed to update issue');
-        }
-    }
-    else {
-        try {
-            const error = await transitionsResponse.json();
-            core.error(error);
-        }
-        catch (e) {
-            core.error('error in transitionsResponse.json()');
-        }
-        throw new Error('Failed get transition id');
-    }
-}
-exports.closeJiraIssue = closeJiraIssue;
 
 
 /***/ }),
@@ -506,14 +363,6 @@ async function run() {
         const issueType = core.getInput('jiraIssueType');
         const repo = core.getInput('githubRepo');
         const owner = core.getInput('githubOwner');
-        // First close jira issue that are closed in github
-        await (0, actions_1.syncJiraWithClosedDependabotPulls)({
-            repo,
-            owner,
-            label,
-            projectKey,
-            issueType
-        });
         // Then open new issues in jira from open dependabot issues
         await (0, actions_1.syncJiraWithOpenDependabotPulls)({
             repo,

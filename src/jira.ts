@@ -45,15 +45,12 @@ function getJiraAuthorizedHeader(): HeaderInit {
 
 export function getJiraApiUrlV3(path = '/'): string {
   const subdomain = process.env.JIRA_SUBDOMAIN
-  core.info(`subdomain ${subdomain}`)
-  const url = `https://${subdomain}.atlassian.net/rest/api/3${path}`
-  return url
+  return `https://${subdomain}.atlassian.net/rest/api/3${path}`
 }
 
 export function getJiraSearchApiUrl(): string {
   const subdomain = process.env.JIRA_SUBDOMAIN
-  const url = `https://${subdomain}.atlassian.net/rest/api/3/search/jql`
-  return url
+  return `https://${subdomain}.atlassian.net/rest/api/3/search/jql`
 }
 
 async function jiraApiPost(params: ApiPostParams): Promise<ApiRequestResponse> {
@@ -208,89 +205,4 @@ export async function createJiraIssue({
   })
   core.info(`Create issue success`)
   return {data}
-}
-
-export async function closeJiraIssue(
-  issueId: string,
-  transitionName = 'done'
-): Promise<ApiRequestResponse> {
-  core.debug(`Closing jira issue`)
-  const body = {
-    transition: {
-      id: -1
-    },
-    update: {
-      comment: [
-        {
-          add: {
-            body: {
-              content: [
-                {
-                  content: [
-                    {
-                      text: 'Closed by dependabot',
-                      type: 'text'
-                    }
-                  ],
-                  type: 'paragraph'
-                }
-              ],
-              type: 'doc',
-              version: 1
-            }
-          }
-        }
-      ]
-    }
-  }
-
-  const transitionsResponse = await fetch(
-    getJiraApiUrlV3(`/issue/${issueId}/transitions`),
-    {
-      method: 'GET',
-      headers: getJiraAuthorizedHeader()
-    }
-  )
-  if (transitionsResponse.status === 200) {
-    const transitionsData = await transitionsResponse.json()
-    const transition = transitionsData.transitions.find(
-      (item: {name: string}) => {
-        if (item.name.toLowerCase() === transitionName.toLowerCase()) {
-          return item
-        }
-      }
-    )
-    body.transition.id = transition.id
-    const updateIssueResponse = await fetch(
-      getJiraApiUrlV3(`/issue/${issueId}/transitions`),
-      {
-        body: JSON.stringify(body),
-        headers: getJiraAuthorizedHeader(),
-        method: 'POST'
-      }
-    )
-    if (updateIssueResponse.status === 204) {
-      return {
-        data: {
-          success: true
-        }
-      }
-    } else {
-      try {
-        const error = await updateIssueResponse.json()
-        core.error(error)
-      } catch (e) {
-        core.error('error in updateIssueResponse.json()')
-      }
-      throw new Error('Failed to update issue')
-    }
-  } else {
-    try {
-      const error = await transitionsResponse.json()
-      core.error(error)
-    } catch (e) {
-      core.error('error in transitionsResponse.json()')
-    }
-    throw new Error('Failed get transition id')
-  }
 }
