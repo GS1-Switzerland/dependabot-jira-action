@@ -344,11 +344,10 @@ function createJiraIssue({ label, projectKey, summary, issueType = 'Bug', repoNa
         const existingIssuesResponse = yield jiraApiSearch({
             jql
         });
-        core.info(`Issues: ${existingIssuesResponse.issues.toString()}`);
         if (existingIssuesResponse &&
             existingIssuesResponse.issues &&
             existingIssuesResponse.issues.length > 0) {
-            core.info(`Has existing issue skipping`);
+            core.debug(`Has existing issue skipping`);
             return { data: existingIssuesResponse.issues[0] };
         }
         core.debug(`Did not find exising, trying create`);
