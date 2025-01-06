@@ -62,11 +62,14 @@ function syncJiraWithOpenDependabotPulls(params) {
     return __awaiter(this, void 0, void 0, function* () {
         try {
             core.setOutput('Sync jira with open dependabot pulls starting', new Date().toTimeString());
+            // destructure params object
             const { repo, owner, label, projectKey, issueType } = params;
+            // get open dependabot PRs
             const dependabotPulls = yield (0, github_1.getDependabotOpenPullRequests)({
                 repo,
                 owner
             });
+            // create Jira Issue for each PR
             for (const pull of dependabotPulls) {
                 yield (0, jira_1.createJiraIssue)(Object.assign({ label,
                     projectKey,
@@ -271,7 +274,7 @@ function getJiraApiUrlV3(path = '/') {
 exports.getJiraApiUrlV3 = getJiraApiUrlV3;
 function getJiraSearchApiUrl() {
     const subdomain = process.env.JIRA_SUBDOMAIN;
-    const url = `https://${subdomain}.atlassian.net/rest/api/2/search`;
+    const url = `https://${subdomain}.atlassian.net/rest/api/3/search/jql`;
     return url;
 }
 exports.getJiraSearchApiUrl = getJiraSearchApiUrl;
@@ -306,9 +309,15 @@ function jiraApiSearch({ jql }) {
         try {
             const getUrl = `${getJiraSearchApiUrl()}?jql=${encodeURIComponent(jql)}`;
             core.info(`jql ${jql}`);
+            const bodyData = `{
+        "fields": ["*all"],
+        "jql": "${jql}",
+        "maxResults": 1000
+      }`;
             const requestParams = {
-                method: 'GET',
-                headers: getJiraAuthorizedHeader()
+                method: 'POST',
+                headers: getJiraAuthorizedHeader(),
+                body: bodyData
             };
             const response = yield (0, node_fetch_1.default)(getUrl, requestParams);
             if (response.status === 200) {
@@ -330,14 +339,16 @@ function jiraApiSearch({ jql }) {
 exports.jiraApiSearch = jiraApiSearch;
 function createJiraIssue({ label, projectKey, summary, issueType = 'Bug', repoName, repoUrl, url, lastUpdatedAt, pullNumber }) {
     return __awaiter(this, void 0, void 0, function* () {
-        const jql = `summary~"${summary}" AND description~"${(0, actions_1.createIssueNumberString)(pullNumber)}" AND labels="${label}" AND project="${projectKey}" AND issuetype="${issueType}"`;
+        const tempSummary = summary.replace(' - ', ' \\"-\\" ');
+        const jql = `summary~'${tempSummary}' AND description~'${(0, actions_1.createIssueNumberString)(pullNumber)}' AND labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}'`;
         const existingIssuesResponse = yield jiraApiSearch({
             jql
         });
+        core.info(`Issues: ${existingIssuesResponse.issues.toString()}`);
         if (existingIssuesResponse &&
             existingIssuesResponse.issues &&
             existingIssuesResponse.issues.length > 0) {
-            core.debug(`Has existing issue skipping`);
+            core.info(`Has existing issue skipping`);
             return { data: existingIssuesResponse.issues[0] };
         }
         core.debug(`Did not find exising, trying create`);
@@ -409,7 +420,7 @@ function createJiraIssue({ label, projectKey, summary, issueType = 'Bug', repoNa
             url: getJiraApiUrlV3('/issue'),
             data: body
         });
-        core.debug(`Create issue success`);
+        core.info(`Create issue success`);
         return { data };
     });
 }

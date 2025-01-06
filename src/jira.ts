@@ -52,7 +52,7 @@ export function getJiraApiUrlV3(path = '/'): string {
 
 export function getJiraSearchApiUrl(): string {
   const subdomain = process.env.JIRA_SUBDOMAIN
-  const url = `https://${subdomain}.atlassian.net/rest/api/2/search`
+  const url = `https://${subdomain}.atlassian.net/rest/api/3/search/jql`
   return url
 }
 
@@ -85,9 +85,15 @@ export async function jiraApiSearch({
   try {
     const getUrl = `${getJiraSearchApiUrl()}?jql=${encodeURIComponent(jql)}`
     core.info(`jql ${jql}`)
+    const bodyData = `{
+        "fields": ["*all"],
+        "jql": "${jql}",
+        "maxResults": 1000
+      }`
     const requestParams: RequestInit = {
-      method: 'GET',
-      headers: getJiraAuthorizedHeader()
+      method: 'POST',
+      headers: getJiraAuthorizedHeader(),
+      body: bodyData
     }
     const response = await fetch(getUrl, requestParams)
     if (response.status === 200) {
@@ -115,18 +121,20 @@ export async function createJiraIssue({
   lastUpdatedAt,
   pullNumber
 }: CreateIssue): Promise<ApiRequestResponse> {
-  const jql = `summary~"${summary}" AND description~"${createIssueNumberString(
+  const tempSummary = summary.replace(' - ', ' \\"-\\" ')
+  const jql = `summary~'${tempSummary}' AND description~'${createIssueNumberString(
     pullNumber
-  )}" AND labels="${label}" AND project="${projectKey}" AND issuetype="${issueType}"`
+  )}' AND labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}'`
   const existingIssuesResponse = await jiraApiSearch({
     jql
   })
+  core.info(`Issues: ${existingIssuesResponse.issues.toString()}`)
   if (
     existingIssuesResponse &&
     existingIssuesResponse.issues &&
     existingIssuesResponse.issues.length > 0
   ) {
-    core.debug(`Has existing issue skipping`)
+    core.info(`Has existing issue skipping`)
     return {data: existingIssuesResponse.issues[0]}
   }
   core.debug(`Did not find exising, trying create`)
@@ -198,7 +206,7 @@ export async function createJiraIssue({
     url: getJiraApiUrlV3('/issue'),
     data: body
   })
-  core.debug(`Create issue success`)
+  core.info(`Create issue success`)
   return {data}
 }
 

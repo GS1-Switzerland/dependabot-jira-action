@@ -37,11 +37,14 @@ export async function syncJiraWithOpenDependabotPulls(
       'Sync jira with open dependabot pulls starting',
       new Date().toTimeString()
     )
+    // destructure params object
     const {repo, owner, label, projectKey, issueType} = params
+    // get open dependabot PRs
     const dependabotPulls: PullRequest[] = await getDependabotOpenPullRequests({
       repo,
       owner
     })
+    // create Jira Issue for each PR
     for (const pull of dependabotPulls) {
       await createJiraIssue({
         label,
