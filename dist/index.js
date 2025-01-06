@@ -260,8 +260,8 @@ function getJiraAuthorizedHeader() {
     core.info(`email ${email}`);
     const authorization = Buffer.from(`${email}:${token}`).toString('base64');
     return {
-        Authorization: `Basic ${authorization}`,
         Accept: 'application/json',
+        Authorization: `Basic ${authorization}`,
         'Content-Type': 'application/json'
     };
 }
@@ -274,7 +274,7 @@ function getJiraApiUrlV3(path = '/') {
 exports.getJiraApiUrlV3 = getJiraApiUrlV3;
 function getJiraSearchApiUrl() {
     const subdomain = process.env.JIRA_SUBDOMAIN;
-    const url = `https://${subdomain}.atlassian.net/rest/api/2/search`;
+    const url = `https://${subdomain}.atlassian.net/rest/api/3/search/jql`;
     return url;
 }
 exports.getJiraSearchApiUrl = getJiraSearchApiUrl;
@@ -309,18 +309,26 @@ function jiraApiSearch({ jql }) {
         try {
             const getUrl = `${getJiraSearchApiUrl()}?jql=${encodeURIComponent(jql)}`;
             core.info(`jql ${jql}`);
+            const bodyData = `{
+        "fields": ["*all"],
+        "jql": "${jql}",
+        "maxResults": 1000
+      }`;
             const requestParams = {
-                method: 'GET',
-                headers: getJiraAuthorizedHeader()
+                method: 'POST',
+                headers: getJiraAuthorizedHeader(),
+                body: bodyData
             };
             const response = yield (0, node_fetch_1.default)(getUrl, requestParams);
             if (response.status === 200) {
+                core.debug('jiraApiSearch(): Response status: 200');
                 return yield response.json();
             }
             else {
                 const error = yield response.json();
                 const errors = Object.values(error.errorMessages);
                 const message = errors.join(',');
+                core.debug(`jiraApiSearch(): Response status: ${response.status} \n ${message}`);
                 throw Error(message);
             }
         }
@@ -333,7 +341,8 @@ function jiraApiSearch({ jql }) {
 exports.jiraApiSearch = jiraApiSearch;
 function createJiraIssue({ label, projectKey, summary, issueType = 'Bug', repoName, repoUrl, url, lastUpdatedAt, pullNumber }) {
     return __awaiter(this, void 0, void 0, function* () {
-        const jql = `summary~"${summary}" AND description~"${(0, actions_1.createIssueNumberString)(pullNumber)}" AND labels="${label}" AND project="${projectKey}" AND issuetype="${issueType}"`;
+        const tempSummary = summary.replace(' - ', ' \\"-\\" ');
+        const jql = `summary~'${tempSummary}' AND description~'${(0, actions_1.createIssueNumberString)(pullNumber)}' AND labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}'`;
         const existingIssuesResponse = yield jiraApiSearch({
             jql
         });
