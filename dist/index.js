@@ -260,8 +260,8 @@ function getJiraAuthorizedHeader() {
     core.info(`email ${email}`);
     const authorization = Buffer.from(`${email}:${token}`).toString('base64');
     return {
-        Accept: 'application/json',
         Authorization: `Basic ${authorization}`,
+        Accept: 'application/json',
         'Content-Type': 'application/json'
     };
 }
@@ -321,14 +321,12 @@ function jiraApiSearch({ jql }) {
             };
             const response = yield (0, node_fetch_1.default)(getUrl, requestParams);
             if (response.status === 200) {
-                core.debug('jiraApiSearch(): Response status: 200');
                 return yield response.json();
             }
             else {
                 const error = yield response.json();
                 const errors = Object.values(error.errorMessages);
                 const message = errors.join(',');
-                core.debug(`jiraApiSearch(): Response status: ${response.status} \n ${message}`);
                 throw Error(message);
             }
         }
