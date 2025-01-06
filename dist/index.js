@@ -29,15 +29,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.syncJiraWithClosedDependabotPulls = exports.syncJiraWithOpenDependabotPulls = exports.createIssueNumberString = exports.extractIssueNumber = void 0;
 const github_1 = __nccwpck_require__(5928);
@@ -58,71 +49,70 @@ function createIssueNumberString(pullNumber) {
     return `PULL_NUMBER_${pullNumber}_PULL_NUMBER`;
 }
 exports.createIssueNumberString = createIssueNumberString;
-function syncJiraWithOpenDependabotPulls(params) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            core.setOutput('Sync jira with open dependabot pulls starting', new Date().toTimeString());
-            // destructure params object
-            const { repo, owner, label, projectKey, issueType } = params;
-            // get open dependabot PRs
-            const dependabotPulls = yield (0, github_1.getDependabotOpenPullRequests)({
-                repo,
-                owner
+async function syncJiraWithOpenDependabotPulls(params) {
+    try {
+        core.setOutput('Sync jira with open dependabot pulls starting', new Date().toTimeString());
+        // destructure params object
+        const { repo, owner, label, projectKey, issueType } = params;
+        // get open dependabot PRs
+        const dependabotPulls = await (0, github_1.getDependabotOpenPullRequests)({
+            repo,
+            owner
+        });
+        // create Jira Issue for each PR
+        for (const pull of dependabotPulls) {
+            await (0, jira_1.createJiraIssue)({
+                label,
+                projectKey,
+                issueType,
+                ...pull
             });
-            // create Jira Issue for each PR
-            for (const pull of dependabotPulls) {
-                yield (0, jira_1.createJiraIssue)(Object.assign({ label,
-                    projectKey,
-                    issueType }, pull));
-            }
-            core.setOutput('Sync jira with open dependabot pulls success', new Date().toTimeString());
-            return 'success';
         }
-        catch (e) {
-            throw e;
-        }
-    });
+        core.setOutput('Sync jira with open dependabot pulls success', new Date().toTimeString());
+        return 'success';
+    }
+    catch (e) {
+        throw e;
+    }
 }
 exports.syncJiraWithOpenDependabotPulls = syncJiraWithOpenDependabotPulls;
-function syncJiraWithClosedDependabotPulls(params) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            core.setOutput('Sync jira with closed dependabot pulls starting', new Date().toTimeString());
-            const { repo, owner, label, projectKey, issueType, transitionDoneName } = params;
-            // First find all issues in jira that are not done
-            const jql = `labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}' AND status != 'Done'`;
-            const existingIssuesResponse = yield (0, jira_1.jiraApiSearch)({
-                jql
-            });
-            if (existingIssuesResponse &&
-                existingIssuesResponse.issues &&
-                existingIssuesResponse.issues.length > 0) {
-                // Loop through issue that are not done and check if they are done in github
-                for (const issue of existingIssuesResponse.issues) {
+async function syncJiraWithClosedDependabotPulls(params) {
+    try {
+        core.setOutput('Sync jira with closed dependabot pulls starting', new Date().toTimeString());
+        const { repo, owner, label, projectKey, issueType, transitionDoneName } = params;
+        // First find all issues in jira that are not done
+        const jql = `labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}' AND status != 'Done'`;
+        const existingIssuesResponse = await (0, jira_1.jiraApiSearch)({
+            jql
+        });
+        if (existingIssuesResponse &&
+            existingIssuesResponse.issues &&
+            existingIssuesResponse.issues.length > 0) {
+            // Loop through issue that are not done and check if they are done in github
+            for (const issue of existingIssuesResponse.issues) {
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore
+                const issueNumber = extractIssueNumber(issue.fields.description);
+                const pullRequest = await (0, github_1.getPullRequestByIssueId)({
+                    repo,
+                    owner,
+                    issueNumber
+                });
+                if (pullRequest.state === 'closed') {
+                    // If the github issue is closed then close the jira issue
                     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                     // @ts-ignore
-                    const issueNumber = extractIssueNumber(issue.fields.description);
-                    const pullRequest = yield (0, github_1.getPullRequestByIssueId)({
-                        repo,
-                        owner,
-                        issueNumber
-                    });
-                    if (pullRequest.state === 'closed') {
-                        // If the github issue is closed then close the jira issue
-                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-                        // @ts-ignore
-                        yield (0, jira_1.closeJiraIssue)(issue.id, transitionDoneName);
-                    }
+                    await (0, jira_1.closeJiraIssue)(issue.id, transitionDoneName);
                 }
             }
-            core.setOutput('Sync jira with closed dependabot pulls success', new Date().toTimeString());
-            return 'success';
         }
-        catch (e) {
-            core.debug(`ERROR ${JSON.stringify(e)}`);
-            throw e;
-        }
-    });
+        core.setOutput('Sync jira with closed dependabot pulls success', new Date().toTimeString());
+        return 'success';
+    }
+    catch (e) {
+        core.debug(`ERROR ${JSON.stringify(e)}`);
+        throw e;
+    }
 }
 exports.syncJiraWithClosedDependabotPulls = syncJiraWithClosedDependabotPulls;
 
@@ -130,79 +120,65 @@ exports.syncJiraWithClosedDependabotPulls = syncJiraWithClosedDependabotPulls;
 /***/ }),
 
 /***/ 5928:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getPullRequestByIssueId = exports.getDependabotOpenPullRequests = void 0;
 const github_1 = __nccwpck_require__(5438);
-function getDependabotOpenPullRequests(params) {
-    var _a;
-    return __awaiter(this, void 0, void 0, function* () {
-        const { owner, repo } = params;
-        const githubApiKey = process.env.GITHUB_API_TOKEN || '';
-        const octokit = (0, github_1.getOctokit)(githubApiKey);
-        const dependabotLoginName = 'dependabot[bot]';
-        const { data } = yield octokit.request('GET /repos/{owner}/{repo}/pulls?state=open', {
+async function getDependabotOpenPullRequests(params) {
+    const { owner, repo } = params;
+    const githubApiKey = process.env.GITHUB_API_TOKEN || '';
+    const octokit = (0, github_1.getOctokit)(githubApiKey);
+    const dependabotLoginName = 'dependabot[bot]';
+    const { data } = await octokit.request('GET /repos/{owner}/{repo}/pulls?state=open', {
+        owner,
+        repo,
+        headers: {
+            'X-GitHub-Api-Version': '2022-11-28'
+        }
+    });
+    const items = [];
+    for (const pull of data) {
+        if (pull?.user?.login === dependabotLoginName) {
+            const item = {
+                url: pull.html_url,
+                summary: `Dependabot alert - ${repo} - ${pull.title}`,
+                description: pull.body,
+                repoName: pull.base.repo.name,
+                repoUrl: pull.base.repo.html_url.replace('***', owner),
+                lastUpdatedAt: pull.updated_at,
+                pullNumber: pull.number.toString()
+            };
+            items.push(item);
+        }
+    }
+    return items;
+}
+exports.getDependabotOpenPullRequests = getDependabotOpenPullRequests;
+async function getPullRequestByIssueId(params) {
+    const { owner, repo, issueNumber } = params;
+    const githubApiKey = process.env.GITHUB_API_TOKEN || '';
+    const octokit = (0, github_1.getOctokit)(githubApiKey);
+    try {
+        const { data } = await octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
             owner,
             repo,
+            pull_number: Number(issueNumber),
             headers: {
                 'X-GitHub-Api-Version': '2022-11-28'
             }
         });
-        const items = [];
-        for (const pull of data) {
-            if (((_a = pull === null || pull === void 0 ? void 0 : pull.user) === null || _a === void 0 ? void 0 : _a.login) === dependabotLoginName) {
-                const item = {
-                    url: pull.html_url,
-                    summary: `Dependabot alert - ${repo} - ${pull.title}`,
-                    description: pull.body,
-                    repoName: pull.base.repo.name,
-                    repoUrl: pull.base.repo.html_url.replace('***', owner),
-                    lastUpdatedAt: pull.updated_at,
-                    pullNumber: pull.number.toString()
-                };
-                items.push(item);
-            }
-        }
-        return items;
-    });
-}
-exports.getDependabotOpenPullRequests = getDependabotOpenPullRequests;
-function getPullRequestByIssueId(params) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const { owner, repo, issueNumber } = params;
-        const githubApiKey = process.env.GITHUB_API_TOKEN || '';
-        const octokit = (0, github_1.getOctokit)(githubApiKey);
-        try {
-            const { data } = yield octokit.request('GET /repos/{owner}/{repo}/pulls/{pull_number}', {
-                owner,
-                repo,
-                pull_number: Number(issueNumber),
-                headers: {
-                    'X-GitHub-Api-Version': '2022-11-28'
-                }
-            });
-            return data;
-        }
-        catch (e) {
-            return {
-                id: -1,
-                url: 'none',
-                state: 'none'
-            };
-        }
-    });
+        return data;
+    }
+    catch (e) {
+        return {
+            id: -1,
+            url: 'none',
+            state: 'none'
+        };
+    }
 }
 exports.getPullRequestByIssueId = getPullRequestByIssueId;
 
@@ -237,15 +213,6 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -278,229 +245,222 @@ function getJiraSearchApiUrl() {
     return url;
 }
 exports.getJiraSearchApiUrl = getJiraSearchApiUrl;
-function jiraApiPost(params) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const { url, data } = params;
-            const fetchParams = {
-                body: JSON.stringify(data),
-                headers: getJiraAuthorizedHeader(),
-                method: 'POST'
-            };
-            const response = yield (0, node_fetch_1.default)(url, fetchParams);
-            if (response.status === 201) {
-                const responseData = yield response.json();
-                return { data: responseData };
-            }
-            else {
-                const error = yield response.json();
-                const errors = Object.values(error.errors);
-                const message = errors.join(',');
-                throw Error(message);
-            }
+async function jiraApiPost(params) {
+    try {
+        const { url, data } = params;
+        const fetchParams = {
+            body: JSON.stringify(data),
+            headers: getJiraAuthorizedHeader(),
+            method: 'POST'
+        };
+        const response = await (0, node_fetch_1.default)(url, fetchParams);
+        if (response.status === 201) {
+            const responseData = await response.json();
+            return { data: responseData };
         }
-        catch (e) {
-            throw new Error('Post error');
+        else {
+            const error = await response.json();
+            const errors = Object.values(error.errors);
+            const message = errors.join(',');
+            throw Error(message);
         }
-    });
+    }
+    catch (e) {
+        throw new Error('Post error');
+    }
 }
-function jiraApiSearch({ jql }) {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            const getUrl = `${getJiraSearchApiUrl()}?jql=${encodeURIComponent(jql)}`;
-            core.info(`jql ${jql}`);
-            const bodyData = `{
+async function jiraApiSearch({ jql }) {
+    try {
+        const getUrl = `${getJiraSearchApiUrl()}?jql=${encodeURIComponent(jql)}`;
+        core.info(`jql ${jql}`);
+        const bodyData = `{
         "fields": ["*all"],
         "jql": "${jql}",
         "maxResults": 1000
       }`;
-            const requestParams = {
-                method: 'POST',
-                headers: getJiraAuthorizedHeader(),
-                body: bodyData
-            };
-            const response = yield (0, node_fetch_1.default)(getUrl, requestParams);
-            if (response.status === 200) {
-                return yield response.json();
-            }
-            else {
-                const error = yield response.json();
-                const errors = Object.values(error.errorMessages);
-                const message = errors.join(',');
-                throw Error(message);
-            }
+        const requestParams = {
+            method: 'POST',
+            headers: getJiraAuthorizedHeader(),
+            body: bodyData
+        };
+        const response = await (0, node_fetch_1.default)(getUrl, requestParams);
+        if (response.status === 200) {
+            return await response.json();
         }
-        catch (e) {
-            core.error('Error getting the existing issue');
-            throw new Error('Error getting the existing issue');
+        else {
+            const error = await response.json();
+            const errors = Object.values(error.errorMessages);
+            const message = errors.join(',');
+            throw Error(message);
         }
-    });
+    }
+    catch (e) {
+        core.error('Error getting the existing issue');
+        throw new Error('Error getting the existing issue');
+    }
 }
 exports.jiraApiSearch = jiraApiSearch;
-function createJiraIssue({ label, projectKey, summary, issueType = 'Bug', repoName, repoUrl, url, lastUpdatedAt, pullNumber }) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const tempSummary = summary.replace(' - ', ' \\"-\\" ');
-        const jql = `summary~'${tempSummary}' AND description~'${(0, actions_1.createIssueNumberString)(pullNumber)}' AND labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}'`;
-        const existingIssuesResponse = yield jiraApiSearch({
-            jql
-        });
-        if (existingIssuesResponse &&
-            existingIssuesResponse.issues &&
-            existingIssuesResponse.issues.length > 0) {
-            core.debug(`Has existing issue skipping`);
-            return { data: existingIssuesResponse.issues[0] };
-        }
-        core.debug(`Did not find exising, trying create`);
-        const body = {
-            fields: {
-                labels: [label],
-                project: {
-                    key: projectKey
-                },
-                summary,
-                description: {
-                    content: [
-                        {
-                            content: [
-                                {
-                                    text: `Application repo: ${repoName}`,
-                                    type: 'text'
-                                }
-                            ],
-                            type: 'paragraph'
-                        },
-                        {
-                            content: [
-                                {
-                                    text: `Application url: ${repoUrl}`,
-                                    type: 'text'
-                                }
-                            ],
-                            type: 'paragraph'
-                        },
-                        {
-                            content: [
-                                {
-                                    text: `Pull request last updated at: ${lastUpdatedAt}`,
-                                    type: 'text'
-                                }
-                            ],
-                            type: 'paragraph'
-                        },
-                        {
-                            content: [
-                                {
-                                    text: `Pull request url: ${url}`,
-                                    type: 'text'
-                                }
-                            ],
-                            type: 'paragraph'
-                        },
-                        {
-                            content: [
-                                {
-                                    text: (0, actions_1.createIssueNumberString)(pullNumber),
-                                    type: 'text'
-                                }
-                            ],
-                            type: 'paragraph'
-                        }
-                    ],
-                    type: 'doc',
-                    version: 1
-                },
-                issuetype: {
-                    name: issueType
-                }
-            },
-            update: {}
-        };
-        const data = yield jiraApiPost({
-            url: getJiraApiUrlV3('/issue'),
-            data: body
-        });
-        core.info(`Create issue success`);
-        return { data };
+async function createJiraIssue({ label, projectKey, summary, issueType = 'Bug', repoName, repoUrl, url, lastUpdatedAt, pullNumber }) {
+    let tempSummary = summary;
+    tempSummary = tempSummary.replaceAll(' - ', ' \\"-\\" ');
+    const jql = `summary~'${tempSummary}' AND description~'${(0, actions_1.createIssueNumberString)(pullNumber)}' AND labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}'`;
+    const existingIssuesResponse = await jiraApiSearch({
+        jql
     });
+    if (existingIssuesResponse &&
+        existingIssuesResponse.issues &&
+        existingIssuesResponse.issues.length > 0) {
+        core.debug(`Has existing issue skipping`);
+        return { data: existingIssuesResponse.issues[0] };
+    }
+    core.debug(`Did not find exising, trying create`);
+    const body = {
+        fields: {
+            labels: [label],
+            project: {
+                key: projectKey
+            },
+            summary,
+            description: {
+                content: [
+                    {
+                        content: [
+                            {
+                                text: `Application repo: ${repoName}`,
+                                type: 'text'
+                            }
+                        ],
+                        type: 'paragraph'
+                    },
+                    {
+                        content: [
+                            {
+                                text: `Application url: ${repoUrl}`,
+                                type: 'text'
+                            }
+                        ],
+                        type: 'paragraph'
+                    },
+                    {
+                        content: [
+                            {
+                                text: `Pull request last updated at: ${lastUpdatedAt}`,
+                                type: 'text'
+                            }
+                        ],
+                        type: 'paragraph'
+                    },
+                    {
+                        content: [
+                            {
+                                text: `Pull request url: ${url}`,
+                                type: 'text'
+                            }
+                        ],
+                        type: 'paragraph'
+                    },
+                    {
+                        content: [
+                            {
+                                text: (0, actions_1.createIssueNumberString)(pullNumber),
+                                type: 'text'
+                            }
+                        ],
+                        type: 'paragraph'
+                    }
+                ],
+                type: 'doc',
+                version: 1
+            },
+            issuetype: {
+                name: issueType
+            }
+        },
+        update: {}
+    };
+    const data = await jiraApiPost({
+        url: getJiraApiUrlV3('/issue'),
+        data: body
+    });
+    core.info(`Create issue success`);
+    return { data };
 }
 exports.createJiraIssue = createJiraIssue;
-function closeJiraIssue(issueId, transitionName = 'done') {
-    return __awaiter(this, void 0, void 0, function* () {
-        core.debug(`Closing jira issue`);
-        const body = {
-            transition: {
-                id: -1
-            },
-            update: {
-                comment: [
-                    {
-                        add: {
-                            body: {
-                                content: [
-                                    {
-                                        content: [
-                                            {
-                                                text: 'Closed by dependabot',
-                                                type: 'text'
-                                            }
-                                        ],
-                                        type: 'paragraph'
-                                    }
-                                ],
-                                type: 'doc',
-                                version: 1
-                            }
+async function closeJiraIssue(issueId, transitionName = 'done') {
+    core.debug(`Closing jira issue`);
+    const body = {
+        transition: {
+            id: -1
+        },
+        update: {
+            comment: [
+                {
+                    add: {
+                        body: {
+                            content: [
+                                {
+                                    content: [
+                                        {
+                                            text: 'Closed by dependabot',
+                                            type: 'text'
+                                        }
+                                    ],
+                                    type: 'paragraph'
+                                }
+                            ],
+                            type: 'doc',
+                            version: 1
                         }
                     }
-                ]
+                }
+            ]
+        }
+    };
+    const transitionsResponse = await (0, node_fetch_1.default)(getJiraApiUrlV3(`/issue/${issueId}/transitions`), {
+        method: 'GET',
+        headers: getJiraAuthorizedHeader()
+    });
+    if (transitionsResponse.status === 200) {
+        const transitionsData = await transitionsResponse.json();
+        const transition = transitionsData.transitions.find((item) => {
+            if (item.name.toLowerCase() === transitionName.toLowerCase()) {
+                return item;
             }
-        };
-        const transitionsResponse = yield (0, node_fetch_1.default)(getJiraApiUrlV3(`/issue/${issueId}/transitions`), {
-            method: 'GET',
-            headers: getJiraAuthorizedHeader()
         });
-        if (transitionsResponse.status === 200) {
-            const transitionsData = yield transitionsResponse.json();
-            const transition = transitionsData.transitions.find((item) => {
-                if (item.name.toLowerCase() === transitionName.toLowerCase()) {
-                    return item;
+        body.transition.id = transition.id;
+        const updateIssueResponse = await (0, node_fetch_1.default)(getJiraApiUrlV3(`/issue/${issueId}/transitions`), {
+            body: JSON.stringify(body),
+            headers: getJiraAuthorizedHeader(),
+            method: 'POST'
+        });
+        if (updateIssueResponse.status === 204) {
+            return {
+                data: {
+                    success: true
                 }
-            });
-            body.transition.id = transition.id;
-            const updateIssueResponse = yield (0, node_fetch_1.default)(getJiraApiUrlV3(`/issue/${issueId}/transitions`), {
-                body: JSON.stringify(body),
-                headers: getJiraAuthorizedHeader(),
-                method: 'POST'
-            });
-            if (updateIssueResponse.status === 204) {
-                return {
-                    data: {
-                        success: true
-                    }
-                };
-            }
-            else {
-                try {
-                    const error = yield updateIssueResponse.json();
-                    core.error(error);
-                }
-                catch (e) {
-                    core.error('error in updateIssueResponse.json()');
-                }
-                throw new Error('Failed to update issue');
-            }
+            };
         }
         else {
             try {
-                const error = yield transitionsResponse.json();
+                const error = await updateIssueResponse.json();
                 core.error(error);
             }
             catch (e) {
-                core.error('error in transitionsResponse.json()');
+                core.error('error in updateIssueResponse.json()');
             }
-            throw new Error('Failed get transition id');
+            throw new Error('Failed to update issue');
         }
-    });
+    }
+    else {
+        try {
+            const error = await transitionsResponse.json();
+            core.error(error);
+        }
+        catch (e) {
+            core.error('error in transitionsResponse.json()');
+        }
+        throw new Error('Failed get transition id');
+    }
 }
 exports.closeJiraIssue = closeJiraIssue;
 
@@ -535,51 +495,40 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const core = __importStar(__nccwpck_require__(2186));
 const actions_1 = __nccwpck_require__(3623);
-function run() {
-    return __awaiter(this, void 0, void 0, function* () {
-        try {
-            core.setOutput('Start dependabot jira issue creation', new Date().toTimeString());
-            const label = core.getInput('jiraIssueLabel');
-            const projectKey = core.getInput('jiraProjectKey');
-            const issueType = core.getInput('jiraIssueType');
-            const repo = core.getInput('githubRepo');
-            const owner = core.getInput('githubOwner');
-            // First close jira issue that are closed in github
-            yield (0, actions_1.syncJiraWithClosedDependabotPulls)({
-                repo,
-                owner,
-                label,
-                projectKey,
-                issueType
-            });
-            // Then open new issues in jira from open dependabot issues
-            yield (0, actions_1.syncJiraWithOpenDependabotPulls)({
-                repo,
-                owner,
-                label,
-                projectKey,
-                issueType
-            });
+async function run() {
+    try {
+        core.setOutput('Start dependabot jira issue creation', new Date().toTimeString());
+        const label = core.getInput('jiraIssueLabel');
+        const projectKey = core.getInput('jiraProjectKey');
+        const issueType = core.getInput('jiraIssueType');
+        const repo = core.getInput('githubRepo');
+        const owner = core.getInput('githubOwner');
+        // First close jira issue that are closed in github
+        await (0, actions_1.syncJiraWithClosedDependabotPulls)({
+            repo,
+            owner,
+            label,
+            projectKey,
+            issueType
+        });
+        // Then open new issues in jira from open dependabot issues
+        await (0, actions_1.syncJiraWithOpenDependabotPulls)({
+            repo,
+            owner,
+            label,
+            projectKey,
+            issueType
+        });
+    }
+    catch (error) {
+        if (error instanceof Error) {
+            core.debug(error.message);
+            core.setFailed(error.message);
         }
-        catch (error) {
-            if (error instanceof Error) {
-                core.debug(error.message);
-                core.setFailed(error.message);
-            }
-        }
-    });
+    }
 }
 run();
 

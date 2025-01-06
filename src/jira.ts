@@ -121,7 +121,8 @@ export async function createJiraIssue({
   lastUpdatedAt,
   pullNumber
 }: CreateIssue): Promise<ApiRequestResponse> {
-  const tempSummary = summary.replace(' - ', ' \\"-\\" ')
+  let tempSummary = summary
+  tempSummary = tempSummary.replaceAll(' - ', ' \\"-\\" ')
   const jql = `summary~'${tempSummary}' AND description~'${createIssueNumberString(
     pullNumber
   )}' AND labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}'`
