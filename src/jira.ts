@@ -121,12 +121,13 @@ export async function createJiraIssue({
   const existingIssuesResponse = await jiraApiSearch({
     jql
   })
+  core.info(`Issues: ${existingIssuesResponse.issues.toString()}`)
   if (
     existingIssuesResponse &&
     existingIssuesResponse.issues &&
     existingIssuesResponse.issues.length > 0
   ) {
-    core.debug(`Has existing issue skipping`)
+    core.info(`Has existing issue skipping`)
     return {data: existingIssuesResponse.issues[0]}
   }
   core.debug(`Did not find exising, trying create`)
@@ -198,7 +199,7 @@ export async function createJiraIssue({
     url: getJiraApiUrlV3('/issue'),
     data: body
   })
-  core.debug(`Create issue success`)
+  core.info(`Create issue success`)
   return {data}
 }
 
