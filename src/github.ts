@@ -1,3 +1,4 @@
+import * as core from '@actions/core'
 import {getOctokit} from '@actions/github'
 
 export interface GetPullRequestParams {
@@ -46,5 +47,6 @@ export async function getDependabotOpenPullRequests(
       items.push(item)
     }
   }
+  core.info('Successfully got GitHub Pulls')
   return items
 }

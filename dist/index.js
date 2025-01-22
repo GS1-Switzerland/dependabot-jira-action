@@ -55,10 +55,12 @@ async function syncJiraWithOpenDependabotPulls(params) {
         // destructure params object
         const { repo, owner, label, projectKey, issueType } = params;
         // get open dependabot PRs
+        core.info('Start GitHub PR request');
         const dependabotPulls = await (0, github_1.getDependabotOpenPullRequests)({
             repo,
             owner
         });
+        core.info('Start creating Jira issues');
         // create Jira Issue for each PR
         for (const pull of dependabotPulls) {
             await (0, jira_1.createJiraIssue)({
@@ -68,6 +70,7 @@ async function syncJiraWithOpenDependabotPulls(params) {
                 ...pull
             });
         }
+        core.info('Successfully created Jira issues');
         core.setOutput('Sync jira with open dependabot pulls success', new Date().toTimeString());
         return 'success';
     }
@@ -81,12 +84,36 @@ exports.syncJiraWithOpenDependabotPulls = syncJiraWithOpenDependabotPulls;
 /***/ }),
 
 /***/ 5928:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
 "use strict";
 
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getDependabotOpenPullRequests = void 0;
+const core = __importStar(__nccwpck_require__(2186));
 const github_1 = __nccwpck_require__(5438);
 async function getDependabotOpenPullRequests(params) {
     const { owner, repo } = params;
@@ -115,6 +142,7 @@ async function getDependabotOpenPullRequests(params) {
             items.push(item);
         }
     }
+    core.info('Successfully got GitHub Pulls');
     return items;
 }
 exports.getDependabotOpenPullRequests = getDependabotOpenPullRequests;
