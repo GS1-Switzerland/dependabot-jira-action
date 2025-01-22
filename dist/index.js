@@ -120,13 +120,27 @@ async function getDependabotOpenPullRequests(params) {
     const githubApiKey = process.env.GITHUB_API_TOKEN || '';
     const octokit = (0, github_1.getOctokit)(githubApiKey);
     const dependabotLoginName = 'dependabot[bot]';
-    const { data } = await octokit.request('GET /repos/{owner}/{repo}/pulls?state=open', {
-        owner,
-        repo,
-        headers: {
-            'X-GitHub-Api-Version': '2022-11-28'
+    let response;
+    try {
+        response = await octokit.request('GET /repos/{owner}/{repo}/pulls?state=open', {
+            owner,
+            repo,
+            headers: {
+                'X-GitHub-Api-Version': '2022-11-28'
+            }
+        });
+    }
+    catch (e) {
+        const isErr = e instanceof Error;
+        if (isErr) {
+            e.message = `GitHub Error: ${e.message} - failed PR request`;
+            throw e;
         }
-    });
+        else {
+            throw e;
+        }
+    }
+    const { data } = response;
     const items = [];
     for (const pull of data) {
         if (pull?.user?.login === dependabotLoginName) {
