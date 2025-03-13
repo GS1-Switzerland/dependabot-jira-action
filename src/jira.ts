@@ -69,9 +69,11 @@ async function jiraApiPost(params: ApiPostParams): Promise<ApiRequestResponse> {
       const error = await response.json()
       const errors = Object.values(error.errors)
       const message = errors.join(',')
+      console.log('Error:', message)
       throw Error(message)
     }
-  } catch (e) {
+  } catch (e:any) {
+    console.error(e.message);
     throw new Error('Post error')
   }
 }
