@@ -230,6 +230,7 @@ async function jiraApiPost(params) {
             method: 'POST'
         };
         const response = await (0, node_fetch_1.default)(url, fetchParams);
+        console.log(response);
         if (response.status === 201) {
             const responseData = await response.json();
             return { data: responseData };

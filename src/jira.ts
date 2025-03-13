@@ -62,6 +62,7 @@ async function jiraApiPost(params: ApiPostParams): Promise<ApiRequestResponse> {
       method: 'POST'
     }
     const response: Response = await fetch(url, fetchParams)
+    console.log(response)
     if (response.status === 201) {
       const responseData = await response.json()
       return {data: responseData}
