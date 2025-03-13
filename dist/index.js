@@ -224,6 +224,8 @@ exports.getJiraSearchApiUrl = getJiraSearchApiUrl;
 async function jiraApiPost(params) {
     try {
         const { url, data } = params;
+        console.log(getJiraAuthorizedHeader());
+        console.log(JSON.stringify(data));
         const fetchParams = {
             body: JSON.stringify(data),
             headers: getJiraAuthorizedHeader(),

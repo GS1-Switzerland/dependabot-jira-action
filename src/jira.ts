@@ -56,6 +56,8 @@ export function getJiraSearchApiUrl(): string {
 async function jiraApiPost(params: ApiPostParams): Promise<ApiRequestResponse> {
   try {
     const {url, data} = params
+    console.log(getJiraAuthorizedHeader())
+    console.log(JSON.stringify(data))
     const fetchParams: RequestInit = {
       body: JSON.stringify(data),
       headers: getJiraAuthorizedHeader(),
