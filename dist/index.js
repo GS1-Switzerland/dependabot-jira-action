@@ -305,8 +305,8 @@ async function jiraApiSearch({ jql }) {
         }
     }
     catch (e) {
-        core.error('Error getting the existing issue');
-        throw new Error('Error getting the existing issue');
+        core.error(`Error getting the existing issue ${e}`);
+        throw new Error(`Error getting the existing issue ${e}`);
     }
 }
 async function createJiraIssue({ label, projectKey, summary, issueType = 'Bug', repoName, repoUrl, url, lastUpdatedAt, pullNumber }) {
