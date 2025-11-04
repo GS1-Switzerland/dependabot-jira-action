@@ -81,7 +81,7 @@ export async function jiraApiSearch({
 }: SearchIssue): Promise<ApiRequestSearchResponse> {
   try {
     const getUrl = getJiraApiUrlV3('/search')
-    core.info(`jql ${jql}`)
+    core.info(`JQL: ${jql}`)
 
     const body = {
       jql,
@@ -96,16 +96,24 @@ export async function jiraApiSearch({
     }
 
     const response = await fetch(getUrl, requestParams)
-    if (response.status === 200) {
-      return await response.json()
-    } else {
-      const error = await response.json()
-      const errors = error.errorMessages || [JSON.stringify(error)]
-      throw new Error(errors.join(', '))
+    const text = await response.text() // safer to debug
+    let data
+    try {
+      data = JSON.parse(text)
+    } catch (e) {
+      core.error(`Jira did not return valid JSON: ${text}`)
+      throw new Error('Invalid JSON response from Jira')
     }
-  } catch (e) {
-    core.error(`Error getting the existing issue ${e}`)
-    throw new Error(`Error getting the existing issue ${e}`)
+
+    if (response.ok) {
+      return data
+    } else {
+      const message = data.errorMessages?.join(', ') || JSON.stringify(data)
+      throw new Error(`Jira search failed: ${message}`)
+    }
+  } catch (e: any) {
+    core.error(`Error getting the existing issue: ${e.message}`)
+    throw e
   }
 }
 
