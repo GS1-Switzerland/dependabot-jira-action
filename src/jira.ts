@@ -85,7 +85,7 @@ export async function jiraApiSearch({
   jql
 }: SearchIssue): Promise<ApiRequestSearchResponse> {
   try {
-    const getUrl = `${getJiraSearchApiUrl()}?jql=${encodeURIComponent(jql)}`
+    const getUrl = `${getJiraApiUrlV3('/search/jql')}`
     core.info(`jql ${jql}`)
     const bodyData = `{
         "fields": ["*all"],
@@ -95,7 +95,9 @@ export async function jiraApiSearch({
     const requestParams: RequestInit = {
       method: 'POST',
       headers: getJiraAuthorizedHeader(),
-      body: bodyData
+      body: JSON.stringify({
+        jql
+      })
     }
     const response = await fetch(getUrl, requestParams)
     if (response.status === 200) {
