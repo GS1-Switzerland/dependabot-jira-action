@@ -48,11 +48,6 @@ export function getJiraApiUrlV3(path = '/'): string {
   return `https://${subdomain}.atlassian.net/rest/api/3${path}`
 }
 
-export function getJiraSearchApiUrl(): string {
-  const subdomain = process.env.JIRA_SUBDOMAIN
-  return `https://${subdomain}.atlassian.net/rest/api/3/search/jql`
-}
-
 async function jiraApiPost(params: ApiPostParams): Promise<ApiRequestResponse> {
   try {
     const {url, data} = params
@@ -85,28 +80,28 @@ export async function jiraApiSearch({
   jql
 }: SearchIssue): Promise<ApiRequestSearchResponse> {
   try {
-    const getUrl = `${getJiraApiUrlV3('/search/jql')}`
+    const getUrl = getJiraApiUrlV3('/search')
     core.info(`jql ${jql}`)
-    const bodyData = `{
-        "fields": ["*all"],
-        "jql": "${jql}",
-        "maxResults": 1000
-      }`
+
+    const body = {
+      jql,
+      maxResults: 1000,
+      fields: ['*all']
+    }
+
     const requestParams: RequestInit = {
       method: 'POST',
       headers: getJiraAuthorizedHeader(),
-      body: JSON.stringify({
-        jql
-      })
+      body: JSON.stringify(body)
     }
+
     const response = await fetch(getUrl, requestParams)
     if (response.status === 200) {
       return await response.json()
     } else {
       const error = await response.json()
-      const errors = Object.values(error.errorMessages)
-      const message = errors.join(',')
-      throw Error(message)
+      const errors = error.errorMessages || [JSON.stringify(error)]
+      throw new Error(errors.join(', '))
     }
   } catch (e) {
     core.error(`Error getting the existing issue ${e}`)
