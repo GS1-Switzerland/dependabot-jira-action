@@ -1,6 +1,6 @@
 import * as process from 'process'
 import {expect, test} from '@jest/globals'
-import {getJiraApiUrlV3, getJiraSearchApiUrl} from '../src/jira'
+import {getJiraApiUrlV3} from '../src/jira'
 import {createIssueNumberString, extractIssueNumber} from '../src/actions'
 
 test('test create jira api url', async () => {
@@ -9,14 +9,6 @@ test('test create jira api url', async () => {
   process.env['JIRA_SUBDOMAIN'] = subdomain
   expect(getJiraApiUrlV3(path)).toEqual(
     `https://${subdomain}.atlassian.net/rest/api/3${path}`
-  )
-})
-
-test('test create jira search url', async () => {
-  const subdomain = 'test-domain'
-  process.env['JIRA_SUBDOMAIN'] = subdomain
-  expect(getJiraSearchApiUrl()).toEqual(
-    `https://${subdomain}.atlassian.net/rest/api/2/search`
   )
 })
 
