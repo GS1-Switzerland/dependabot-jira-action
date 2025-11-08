@@ -165,7 +165,7 @@ async function getDependabotOpenPullRequests(params) {
         if (pull?.user?.login === dependabotLoginName) {
             const item = {
                 url: pull.html_url,
-                summary: `Dependabot alert - ${repo} - ${pull.title}`,
+                summary: `${pull.title}`,
                 description: pull.body,
                 repoName: pull.base.repo.name,
                 repoUrl: pull.base.repo.html_url.replace('***', owner),
@@ -312,7 +312,7 @@ async function jiraApiSearch({ jql }) {
     }
 }
 async function createJiraIssue({ label, projectKey, summary, issueType = 'Bug', repoName, repoUrl, url, lastUpdatedAt, pullNumber }) {
-    const jql = `labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}'`;
+    const jql = `labels='${label}' AND project='${projectKey}' AND issuetype='Story'`;
     const existingIssuesResponse = await jiraApiSearch({
         jql
     });
