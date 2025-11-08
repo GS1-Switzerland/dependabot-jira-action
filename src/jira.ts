@@ -80,7 +80,7 @@ export async function jiraApiSearch({
   jql
 }: SearchIssue): Promise<ApiRequestSearchResponse> {
   try {
-    const getUrl = getJiraApiUrlV3('/search')
+    const getUrl = getJiraApiUrlV3('/search/jql')
     core.info(`JQL: ${jql}`)
 
     const body = {
@@ -206,7 +206,7 @@ export async function createJiraIssue({
     update: {}
   }
   const data = await jiraApiPost({
-    url: getJiraApiUrlV3('/issue'),
+    url: getJiraApiUrlV3('/issue/jql'),
     data: body
   })
   core.info(`Create issue success`)

@@ -276,7 +276,7 @@ async function jiraApiPost(params) {
 }
 async function jiraApiSearch({ jql }) {
     try {
-        const getUrl = getJiraApiUrlV3('/search');
+        const getUrl = getJiraApiUrlV3('/search/jql');
         core.info(`JQL: ${jql}`);
         const body = {
             jql,
@@ -388,7 +388,7 @@ async function createJiraIssue({ label, projectKey, summary, issueType = 'Bug', 
         update: {}
     };
     const data = await jiraApiPost({
-        url: getJiraApiUrlV3('/issue'),
+        url: getJiraApiUrlV3('/issue/jql'),
         data: body
     });
     core.info(`Create issue success`);
