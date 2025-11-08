@@ -225,7 +225,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.getJiraApiUrlV3 = getJiraApiUrlV3;
-exports.getJiraSearchApiUrl = getJiraSearchApiUrl;
 exports.jiraApiSearch = jiraApiSearch;
 exports.createJiraIssue = createJiraIssue;
 const core = __importStar(__nccwpck_require__(2186));
@@ -245,10 +244,6 @@ function getJiraAuthorizedHeader() {
 function getJiraApiUrlV3(path = '/') {
     const subdomain = process.env.JIRA_SUBDOMAIN;
     return `https://${subdomain}.atlassian.net/rest/api/3${path}`;
-}
-function getJiraSearchApiUrl() {
-    const subdomain = process.env.JIRA_SUBDOMAIN;
-    return `https://${subdomain}.atlassian.net/rest/api/3/search/jql`;
 }
 async function jiraApiPost(params) {
     try {
@@ -281,36 +276,43 @@ async function jiraApiPost(params) {
 }
 async function jiraApiSearch({ jql }) {
     try {
-        const getUrl = `${getJiraSearchApiUrl()}?jql=${encodeURIComponent(jql)}`;
-        core.info(`jql ${jql}`);
-        const bodyData = `{
-        "fields": ["*all"],
-        "jql": "${jql}",
-        "maxResults": 1000
-      }`;
+        const getUrl = getJiraApiUrlV3('/search');
+        core.info(`JQL: ${jql}`);
+        const body = {
+            jql,
+            maxResults: 1000,
+            fields: ['*all']
+        };
         const requestParams = {
             method: 'POST',
             headers: getJiraAuthorizedHeader(),
-            body: bodyData
+            body: JSON.stringify(body)
         };
         const response = await (0, node_fetch_1.default)(getUrl, requestParams);
-        if (response.status === 200) {
-            return await response.json();
+        const text = await response.text(); // safer to debug
+        let data;
+        try {
+            data = JSON.parse(text);
+        }
+        catch (e) {
+            core.error(`Jira did not return valid JSON: ${text}`);
+            throw new Error('Invalid JSON response from Jira');
+        }
+        if (response.ok) {
+            return data;
         }
         else {
-            const error = await response.json();
-            const errors = Object.values(error.errorMessages);
-            const message = errors.join(',');
-            throw Error(message);
+            const message = data.errorMessages?.join(', ') || JSON.stringify(data);
+            throw new Error(`Jira search failed: ${message}`);
         }
     }
     catch (e) {
-        core.error(`Error getting the existing issue ${e}`);
-        throw new Error(`Error getting the existing issue ${e}`);
+        core.error(`Error getting the existing issue: ${e.message}`);
+        throw e;
     }
 }
 async function createJiraIssue({ label, projectKey, summary, issueType = 'Bug', repoName, repoUrl, url, lastUpdatedAt, pullNumber }) {
-    const jql = `description~"${(0, actions_1.createIssueNumberString)(pullNumber)}' AND labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}'`;
+    const jql = `labels='${label}' AND project='${projectKey}' AND issuetype='${issueType}'`;
     const existingIssuesResponse = await jiraApiSearch({
         jql
     });
